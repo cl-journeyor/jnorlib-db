@@ -13,10 +13,10 @@
 (defn exec!
   "Executes the `sql` string with the JDBC manager `mng`.
   A `values` vector is used when `sql` has ? placeholders."
-  ([mng sql]
+  ([mng ^String sql]
    (jnor/typed [JdbcManager mng] [String sql])
    (.execute mng sql))
-  ([mng sql values]
+  ([mng ^String sql values]
    (jnor/typed [JdbcManager mng] [String sql] [IPersistentVector values])
    (let [ps (.prepareStatement mng sql)
          object-count (count values)]
@@ -29,16 +29,15 @@
            (recur (inc i) (inc ordinal))))))))
 
 (defn- result-set->vec
-  [result-set cols]
-  (let [key-name-entries (map (fn [k] [k (name k)]) cols)]
-    (->> (repeat result-set)
-         (take-while #(.next %))
-         (map #(->> key-name-entries
-                    (reduce
-                     (fn [m [k n]] (assoc! m k (.getObject % n)))
-                     (transient {}))
-                    persistent!))
-         vec)))
+  [rs cols]
+  (->> (repeat rs)
+       (take-while #(.next %))
+       (map #(->> cols
+                  (reduce
+                   (fn [m col] (assoc! m col (.getObject % (name col))))
+                   (transient {}))
+                  persistent!))
+       vec))
 
 (defn exec-query!
   "Returns the result of executing the `sql` string with the JDBC manager
@@ -46,10 +45,10 @@
   `cols` is a set of keywords that match the names of the desired columns to
   retrieve.
   A `values` vector is used when `sql` has ? placeholders."
-  ([mng sql cols]
+  ([mng ^String sql cols]
    (jnor/typed [JdbcManager mng] [String sql] [IPersistentSet cols])
    (result-set->vec (.executeQuery mng sql) cols))
-  ([mng sql values cols]
+  ([mng ^String sql values cols]
    (jnor/typed
     [JdbcManager mng]
     [String sql]
