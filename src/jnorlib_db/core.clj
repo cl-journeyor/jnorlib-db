@@ -33,9 +33,11 @@
   (let [key-name-entries (map (fn [k] [k (name k)]) cols)]
     (->> (repeat result-set)
          (take-while #(.next %))
-         (map (fn [rs] (->> key-name-entries
-                            (mapcat (fn [[k n]] [k (.getObject rs n)]))
-                            (apply hash-map))))
+         (map #(->> key-name-entries
+                    (reduce
+                     (fn [m [k n]] (assoc! m k (.getObject % n)))
+                     (transient {}))
+                    persistent!))
          vec)))
 
 (defn exec-query!
